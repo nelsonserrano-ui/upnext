@@ -190,6 +190,112 @@ function ReminderToast({ reminder, onDone, onSnooze, onDismiss }) {
 }
 
 /* ══════════════════════════════════════════
+   TASK DETAIL MODAL (NEW)
+══════════════════════════════════════════ */
+function TaskDetailModal({ task, onClose, onUpdate, onDelete, client }) {
+  const [notes, setNotes] = useState(task.notes || '')
+  const [subtasks, setSubtasks] = useState(task.subtasks || [])
+  const [newSubtask, setNewSubtask] = useState('')
+  const [progress, setProgress] = useState(task.progress || 0)
+  const [saving, setSaving] = useState(false)
+
+  const saveChanges = async () => {
+    setSaving(true)
+    const updates = { notes, subtasks, progress }
+    await onUpdate(task.id, updates)
+    setSaving(false)
+  }
+
+  const toggleSubtask = (idx) => {
+    const updated = [...subtasks]
+    updated[idx] = { ...updated[idx], done: !updated[idx].done }
+    setSubtasks(updated)
+  }
+
+  const addSubtask = () => {
+    if (!newSubtask.trim()) return
+    setSubtasks([...subtasks, { title: newSubtask, done: false }])
+    setNewSubtask('')
+  }
+
+  const deleteSubtask = (idx) => {
+    setSubtasks(subtasks.filter((_, i) => i !== idx))
+  }
+
+  const completedSubtasks = subtasks.filter(s => s.done).length
+  const progressPct = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0
+
+  return (
+    <Modal onClose={onClose} width={520}>
+      <div style={{ display:'flex',alignItems:'start',justifyContent:'space-between',marginBottom:24 }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:18,fontWeight:800,marginBottom:6 }}>{task.title}</div>
+          {client && <div style={{ fontSize:13,color:'var(--muted2)' }}>{client.emoji} {client.name}</div>}
+        </div>
+        <button onClick={onClose} style={s.mini}>×</button>
+      </div>
+
+      {/* Quick meta */}
+      <div style={{ display:'flex',gap:8,marginBottom:24,flexWrap:'wrap' }}>
+        {task.priority === 'now' && <span style={{...s.tag,borderColor:'rgba(255,100,80,.3)',color:'rgba(255,120,100,.9)'}}>⚡ Urgent</span>}
+        {task.scheduled_time && <span style={{...s.tag,borderColor:'rgba(255,150,0,.3)',color:'rgba(255,160,80,.9)'}}>🔥 {task.scheduled_time}</span>}
+        <span style={{...s.tag,borderColor:'rgba(255,255,255,.12)',color:'var(--muted2)'}}>{task.bucket}</span>
+      </div>
+
+      {/* Progress bar */}
+      {subtasks.length > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',marginBottom:8 }}>
+            <span style={{ fontSize:13,fontWeight:600 }}>Progress</span>
+            <span style={{ fontSize:12,color:'var(--muted2)' }}>{completedSubtasks}/{subtasks.length}</span>
+          </div>
+          <div style={{ width:'100%',height:8,borderRadius:999,background:'rgba(255,255,255,.06)',overflow:'hidden' }}>
+            <div style={{ height:'100%',background:'linear-gradient(90deg,rgba(0,200,255,.8),rgba(0,220,100,.8))',width:`${progressPct}%`,transition:'width .2s' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Subtasks */}
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontSize:13,fontWeight:600,marginBottom:12 }}>Subtasks</div>
+        <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:12 }}>
+          {subtasks.map((sub, idx) => (
+            <div key={idx} style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)' }}>
+              <button onClick={() => toggleSubtask(idx)}
+                style={{ width:18,height:18,borderRadius:5,border:'1px solid rgba(255,255,255,.22)',background:sub.done?'rgba(0,220,100,.65)':'transparent',flexShrink:0,cursor:'pointer',display:'grid',placeItems:'center',fontSize:10,color:'white' }}>
+                {sub.done ? '✓' : ''}
+              </button>
+              <span style={{ flex:1,fontSize:13,color:sub.done?'var(--muted2)':'var(--text)',textDecoration:sub.done?'line-through':'none' }}>{sub.title}</span>
+              <button onClick={() => deleteSubtask(idx)} style={{ ...s.mini,width:24,height:24,fontSize:12,color:'rgba(255,100,100,.7)' }}>×</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:'flex',gap:8 }}>
+          <input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} onKeyDown={e => e.key==='Enter'&&addSubtask()}
+            placeholder="Add subtask…" style={{ flex:1,...s.input,padding:'8px 12px',fontSize:13 }} />
+          <button onClick={addSubtask} style={{ ...s.mini,background:'rgba(0,200,255,.12)',border:'1px solid rgba(0,200,255,.25)' }}>+</button>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div style={{ marginBottom:24 }}>
+        <label style={{ fontSize:13,fontWeight:600,marginBottom:8,display:'block' }}>Notes</label>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)}
+          placeholder="Add notes, context, links…" style={{ ...s.input,padding:'12px',minHeight:100,fontFamily:'var(--font)',resize:'vertical' }} />
+      </div>
+
+      {/* Actions */}
+      <div style={{ display:'flex',gap:10 }}>
+        <button onClick={() => { if(confirm('Delete task?')) onDelete(task.id); onClose() }}
+          style={{ ...s.chip('danger'),padding:'10px 16px' }}>🗑 Delete</button>
+        <button onClick={saveChanges} disabled={saving}
+          style={{ flex:1,...s.chip('primary'),padding:'10px' }}>{saving?'Saving…':'✓ Save Changes'}</button>
+      </div>
+    </Modal>
+  )
+}
+
+/* ══════════════════════════════════════════
    EMPTY STATE
 ══════════════════════════════════════════ */
 function EmptyState({ icon, title, sub, actions }) {
@@ -399,7 +505,7 @@ function AddClientModal({ onClose, onAdd, initialName = '' }) {
 /* ══════════════════════════════════════════
    TASK ROW
 ══════════════════════════════════════════ */
-function TaskRow({ task, isNext, onToggle, onDelete, onClick, celebrating }) {
+function TaskRow({ task, isNext, onToggle, onDelete, onClick, celebrating, dragging, dragHandleProps }) {
   const [hover, setHover] = useState(false)
   const done = task.status === 'done'
 
@@ -409,22 +515,22 @@ function TaskRow({ task, isNext, onToggle, onDelete, onClick, celebrating }) {
     <div
       className={celebrating ? 'celebrating' : ''}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      onClick={() => !done && onClick && onClick(task)}
       style={{
         display:'flex', alignItems:'center', gap:9, cursor: done?'default':'pointer',
         padding: isNext ? '10px 12px' : '8px 6px',
         marginBottom: isNext ? 8 : 0,
         borderRadius: isNext ? 11 : 0,
-        background: isNext ? 'rgba(0,200,255,.06)' : hover&&!done ? 'rgba(255,255,255,.02)' : 'transparent',
-        border: isNext ? '1px solid rgba(0,200,255,.18)' : '1px solid transparent',
+        background: dragging ? 'rgba(0,200,255,.12)' : isNext ? 'rgba(0,200,255,.06)' : hover&&!done ? 'rgba(255,255,255,.02)' : 'transparent',
+        border: isNext ? '1px solid rgba(0,200,255,.18)' : dragging ? '1px dashed rgba(0,200,255,.3)' : '1px solid transparent',
         borderBottom: !isNext ? '1px solid rgba(255,255,255,.05)' : undefined,
-        transition:'all .1s', userSelect:'none',
+        transition:'all .1s', userSelect:'none', opacity: dragging ? 0.6 : 1,
       }}>
+      {dragHandleProps && <div {...dragHandleProps} style={{ cursor:'grab',fontSize:13,color:'var(--muted2)',flexShrink:0 }}>⋮</div>}
       <button onClick={e => { e.stopPropagation(); onToggle(task) }}
         style={{ width:17,height:17,borderRadius:5,border:'1px solid rgba(255,255,255,.22)',background: done?'rgba(0,220,100,.65)':'transparent',flexShrink:0,cursor:'pointer',display:'grid',placeItems:'center',fontSize:10,color:'white' }}>
         {done ? '✓' : ''}
       </button>
-      <span style={{ flex:1,fontSize:13,fontWeight:600,color: done?'var(--muted2)':'rgba(234,240,255,.9)',textDecoration: done?'line-through':'none',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
+      <span onClick={() => !done && onClick && onClick(task)} style={{ flex:1,fontSize:13,fontWeight:600,color: done?'var(--muted2)':'rgba(234,240,255,.9)',textDecoration: done?'line-through':'none',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',cursor:'pointer' }}>
         {task.title}
         {isNext && <span style={{ fontSize:9,marginLeft:7,color:'rgba(0,200,255,.7)',fontWeight:800,letterSpacing:.6 }}>NEXT</span>}
       </span>
@@ -447,12 +553,14 @@ function TaskRow({ task, isNext, onToggle, onDelete, onClick, celebrating }) {
 }
 
 /* ══════════════════════════════════════════
-   CLIENT CARD (home)
+   CLIENT CARD (home) - WITH DRAG-TO-REORDER
 ══════════════════════════════════════════ */
-function ClientCard({ client, tasks, celebrating, onToggleTask, onDeleteTask, onAddTask, onDeleteClient, onTaskClick, onClick }) {
+function ClientCard({ client, tasks, celebrating, onToggleTask, onDeleteTask, onAddTask, onDeleteClient, onTaskClick, onClick, onReorderTasks }) {
   const [adding, setAdding] = useState(false)
   const [quick, setQuick] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [draggedId, setDraggedId] = useState(null)
+  const [overIdx, setOverIdx] = useState(null)
   const menuRef = useRef()
 
   const clientTasks = tasks.filter(t => t.client_id === client.id && t.status === 'open')
@@ -480,6 +588,29 @@ function ClientCard({ client, tasks, celebrating, onToggleTask, onDeleteTask, on
     const parsed = parseInput(quick)
     await onAddTask({ ...parsed, client_id: client.id })
     setQuick(''); setAdding(false)
+  }
+
+  const handleDragStart = (e, task) => {
+    setDraggedId(task.id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault()
+    if (!draggedId) return
+    const draggedTask = clientTasks.find(t => t.id === draggedId)
+    if (!draggedTask) return
+    const newTasks = clientTasks.filter(t => t.id !== draggedId)
+    newTasks.splice(targetIdx, 0, draggedTask)
+    // Pass reordered tasks to parent
+    if (onReorderTasks) onReorderTasks(newTasks)
+    setDraggedId(null)
+    setOverIdx(null)
   }
 
   return (
@@ -519,14 +650,27 @@ function ClientCard({ client, tasks, celebrating, onToggleTask, onDeleteTask, on
           </div>
         )}
 
-        {/* top tasks */}
+        {/* top tasks with drag support */}
         <div style={{ flex:1 }} onClick={e => e.stopPropagation()}>
           {topTasks.length === 0
             ? <p style={{ color:'var(--muted2)',fontSize:12,padding:'4px 2px' }}>No tasks — hit + to add</p>
-            : topTasks.map(t => (
-                <TaskRow key={t.id} task={t} isNext={t.id === nextAction?.id}
-                  celebrating={celebrating === t.id}
-                  onToggle={onToggleTask} onDelete={onDeleteTask} onClick={onTaskClick} />
+            : topTasks.map((t, idx) => (
+                <div
+                  key={t.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, t)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onDragEnter={() => setOverIdx(idx)}
+                  onDragLeave={() => setOverIdx(null)}
+                  style={{ position:'relative' }}>
+                  <TaskRow task={t} isNext={t.id === nextAction?.id}
+                    celebrating={celebrating === t.id}
+                    onToggle={onToggleTask} onDelete={onDeleteTask} onClick={onTaskClick}
+                    dragging={draggedId === t.id}
+                    dragHandleProps={{ onMouseDown: e => e.preventDefault() }} />
+                  {overIdx === idx && <div style={{ position:'absolute',left:0,right:0,top:'-2px',height:'3px',background:'rgba(0,200,255,.5)',borderRadius:2 }} />}
+                </div>
               ))
           }
           {clientTasks.length > 3 && (
@@ -684,7 +828,7 @@ function BrainDumpInput({ clients, onAddTask, onCreateClient, defaultClientId })
 /* ══════════════════════════════════════════
    CLIENT DETAIL PAGE
 ══════════════════════════════════════════ */
-function ClientDetailPage({ client, tasks, celebrating, onBack, onToggleTask, onDeleteTask, onAddTask }) {
+function ClientDetailPage({ client, tasks, celebrating, onBack, onToggleTask, onDeleteTask, onAddTask, onTaskClick, onUpdateTask }) {
   const [doneOpen, setDoneOpen] = useState(false)
   const [addingBucket, setAddingBucket] = useState(null)
   const [quick, setQuick] = useState('')
@@ -729,7 +873,7 @@ function ClientDetailPage({ client, tasks, celebrating, onBack, onToggleTask, on
         : colTasks.map(t => (
             <TaskRow key={t.id} task={t} isNext={t.id === nextAction?.id}
               celebrating={celebrating === t.id}
-              onToggle={onToggleTask} onDelete={onDeleteTask} />
+              onToggle={onToggleTask} onDelete={onDeleteTask} onClick={onTaskClick} />
           ))
       }
     </div>
@@ -791,7 +935,7 @@ function ClientDetailPage({ client, tasks, celebrating, onBack, onToggleTask, on
           <p style={{ fontSize:12,color:'var(--muted2)',textAlign:'center',padding:'16px 0',marginTop:10 }}>No completed tasks yet.</p>
         )}
         {doneOpen && done.map(t => (
-          <TaskRow key={t.id} task={t} celebrating={false} onToggle={onToggleTask} onDelete={onDeleteTask} />
+          <TaskRow key={t.id} task={t} celebrating={false} onToggle={onToggleTask} onDelete={onDeleteTask} onClick={onTaskClick} />
         ))}
       </div>
     </div>
@@ -860,6 +1004,7 @@ export default function App() {
   const [dopamine, setDopamine] = useState(null)
   const [reminder, setReminder] = useState(null)
   const [search, setSearch] = useState('')
+  const [selectedTask, setSelectedTask] = useState(null)
 
   /* ── Load data ── */
   const loadData = useCallback(async () => {
@@ -950,6 +1095,14 @@ export default function App() {
     else alert('Error: ' + error.message)
   }
 
+  const handleUpdateTask = async (taskId, updates) => {
+    const { error } = await supabase.from('tasks').update(updates).eq('id', taskId)
+    if (!error) {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t))
+      setSelectedTask(prev => prev ? { ...prev, ...updates } : null)
+    } else alert('Error: ' + error.message)
+  }
+
   const handleAddClient = (c) => setClients(prev => [...prev, c])
 
   const handleCreateClientFromMention = async (name) => {
@@ -968,6 +1121,18 @@ export default function App() {
     setClients(prev => prev.filter(c => c.id !== id))
     setTasks(prev => prev.filter(t => t.client_id !== id))
     if (selectedClientId === id) { setSelectedClientId(null); setView('home') }
+  }
+
+  const handleReorderTasks = async (reorderedTasks) => {
+    // Update sort_order in database
+    const updates = reorderedTasks.map((t, idx) => ({ id: t.id, sort_order: idx }))
+    for (const update of updates) {
+      await supabase.from('tasks').update({ sort_order: update.sort_order }).eq('id', update.id)
+    }
+    setTasks(prev => {
+      const updated = [...prev]
+      return updated.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    })
   }
 
   /* ── Computed ── */
@@ -1006,6 +1171,16 @@ export default function App() {
     <div style={{ maxWidth:1280,margin:'0 auto',padding:'28px 28px 80px' }}>
       {/* overlays */}
       <DopamineOverlay phrase={dopamine} />
+
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          client={clients.find(c => c.id === selectedTask.client_id)}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={handleUpdateTask}
+          onDelete={handleDeleteTask}
+        />
+      )}
 
       {focusTask && (
         <FocusMode
@@ -1056,7 +1231,7 @@ export default function App() {
             : filteredTasks.map(t => {
                 const client = clients.find(c => c.id === t.client_id)
                 return (
-                  <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,.05)' }}>
+                  <div key={t.id} onClick={() => setSelectedTask(t)} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,.05)',cursor:'pointer' }}>
                     <span style={{ flex:1,fontSize:14,color: t.status==='done'?'var(--muted2)':'var(--text)',textDecoration: t.status==='done'?'line-through':'none' }}>{t.title}</span>
                     {client && <span style={s.tag}>{client.emoji} {client.name}</span>}
                     <span style={s.tag}>{t.bucket}</span>
@@ -1077,6 +1252,8 @@ export default function App() {
           onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask}
           onAddTask={handleAddTask}
+          onTaskClick={(t) => setSelectedTask(t)}
+          onUpdateTask={handleUpdateTask}
         />
       )}
 
@@ -1121,7 +1298,8 @@ export default function App() {
                   <ClientCard key={c.id} client={c} tasks={tasks} celebrating={celebrating}
                     onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask}
                     onAddTask={handleAddTask} onDeleteClient={handleDeleteClient}
-                    onTaskClick={() => {}}
+                    onTaskClick={(t) => setSelectedTask(t)}
+                    onReorderTasks={handleReorderTasks}
                     onClick={() => { setSelectedClientId(c.id) }}
                   />
                 ))}
