@@ -91,7 +91,7 @@ function playReminder() {
 }
 
 const DOPAMINE = [
-  'Nice. 🎯', 'Let's go. ⚡', 'Boom. 💥', 'Thank God 😮‍💨',
+  'Nice. 🎯', "Let's go. ⚡", 'Boom. 💥', 'Thank God 😮‍💨',
   'Finally. 🙌', 'One down. 💪', 'Crushed it. 🔥', 'Clean. ✨',
   'Next! 🚀', 'Done done. ✅', 'Smooth. 😎', 'Yes. 👊',
   'Gone. 💨', 'Like butter. 🧈', 'Momentum. 🌊', 'Easy. 😤',
