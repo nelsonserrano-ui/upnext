@@ -6,16 +6,16 @@ const today = () => new Date().toISOString().split('T')[0]
 
 function parseInput(raw) {
   let title = raw
-  let scheduledTime = null
+  let scheduled_time = null
   let priority = 'normal'
-  let scheduledDate = today()
+  let scheduled_date = today()
 
   const timeMatch = raw.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i)
-  if (timeMatch) { scheduledTime = timeMatch[1].toUpperCase(); title = title.replace(timeMatch[0], '') }
+  if (timeMatch) { scheduled_time = timeMatch[1].toUpperCase(); title = title.replace(timeMatch[0], '') }
 
   if (/\btomorrow\b/i.test(raw)) {
     const d = new Date(); d.setDate(d.getDate() + 1)
-    scheduledDate = d.toISOString().split('T')[0]
+    scheduled_date = d.toISOString().split('T')[0]
     title = title.replace(/\btomorrow\b/gi, '')
   } else if (/\btoday\b/i.test(raw)) {
     title = title.replace(/\btoday\b/gi, '')
@@ -23,7 +23,7 @@ function parseInput(raw) {
 
   if (/\bASAP\b/i.test(raw) || /!!/.test(raw)) { priority = 'asap'; title = title.replace(/\bASAP\b/gi, '').replace(/!!/g, '') }
   title = title.replace(/~/g, '').replace(/@\w+/g, '').replace(/\s+/g, ' ').trim()
-  return { title, scheduledTime, scheduledDate, priority }
+  return { title, scheduled_time, scheduled_date, priority }
 }
 
 const CLIENT_GRADIENTS = [
